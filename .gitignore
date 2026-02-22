@@ -1,0 +1,76 @@
+# .gitignore for .NET projects
+# Build results
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+
+# Copilot CLI output
+copilot-cli/
+
+# NuGet packages
+*.nupkg
+# Package directories
+packages/
+# Package logs
+*.log
+
+# Others
+*.DS_Store
+*.idea/
+*.vs/
+
+# OS generated files
+Thumbs.db
+desktop.ini
+
+# Ignore test results
+TestResults/
+
+# Ignore coverage reports
+coverage/
+*.coverage
+*.coveragexml
+
+# Ignore publish output
+publish/
+
+# Ignore temporary files
+~$*
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# Ignore generated files
+*.GeneratedMSBuildEditorConfig.editorconfig
+*.GlobalUsings.g.cs
+
+# Ignore ref folders
+ref/
+refint/
+
+# Ignore language folders
+cs/
+de/
+es/
+fr/
+it/
+ja/
+ko/
+pl/
+pt-BR/
+ru/
+tr/
+zh-Hans/
+zh-Hant/
+
+# Ignore runtime folders
+runtimes/
