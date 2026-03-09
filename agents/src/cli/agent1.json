@@ -1,0 +1,5 @@
+{
+    "name": "Text summarizer",
+    "displayName": "Text Summarizer",
+    "description": "Summarizes text using a large language model."
+}

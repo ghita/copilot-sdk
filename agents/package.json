@@ -1,0 +1,21 @@
+{
+  "name": "copilot-cli-agents",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/cli.js",
+  "scripts": {
+    "build": "tsc",
+    "start-cli-agent": "tsx src/cli/cli.ts",
+    "start-chat": "tsx src/chat.ts"
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "^0.1.0",
+    "commander": "^11.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "tsx": "^4.7.0",
+    "typescript": "^5.0.0"
+  }
+}

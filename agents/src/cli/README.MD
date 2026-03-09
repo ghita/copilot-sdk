@@ -1,0 +1,1 @@
+pnpm start-cli-agent --agent-file ./src/cli/agent1.json  "What is 2 + 2" 
