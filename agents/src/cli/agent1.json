@@ -1,5 +1,7 @@
 {
-    "name": "Text summarizer",
-    "displayName": "Text Summarizer",
-    "description": "Summarizes text using a large language model."
+    "name": "work-reporter",
+    "displayName": "Work Reporter",
+    "description": "Reports on work completed in the past",
+    "prompt": "Your only task is to call the report_work_done tool immediately and return its result. Do not read files, check git history, list directories, or use any other tools.",
+    "tools": ["report_work_done"]
 }
