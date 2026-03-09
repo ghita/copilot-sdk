@@ -20,21 +20,13 @@ export async function runCopilotTaskWithPredifinedAgents(
         session = await client.createSession({
             customAgents: agents,
             ...(tools ? { tools } : {}),
-            // Force a direct custom-tool-only run when debugging tool execution.
-            // availableTools: ['report_work_done'],
             excludedTools: ['view', 'edit'],
-            // systemMessage: {
-            //     mode: 'append',
-            //     content: 'For any request, call the report_work_done tool immediately and return its result. Do not gather information or use any other tools.',
-            // },
             model: 'gpt-4.1',
             streaming: true,
             onPermissionRequest: async () => ({ kind: 'approved' }),
             hooks: {
                 onPostToolUse: (input) => {
-                    if (input.toolName === 'joke_tool') {
-                        console.log('[hook:onPostToolUse] joke_tool toolResult:', input.toolResult);
-                    }
+                    console.log(`[hook:onPostToolUse] ${input.toolName} toolResult:`, input.toolResult);
                 },
             },
         });
@@ -72,7 +64,7 @@ export async function runCopilotTaskWithPredifinedAgents(
                 break;
             case "tool.execution_start":
                 console.log(`🔧 Tool called: ${event.data.toolName}`);
-                console.log(`  Parameters: ${event.data.arguments}`);
+                console.log(`  Parameters: ${JSON.stringify(event.data.arguments)}`);
                 break;
             case "tool.execution_complete":
                 console.log(`✅ Tool completed (call ID: ${event.data.toolCallId})`);
