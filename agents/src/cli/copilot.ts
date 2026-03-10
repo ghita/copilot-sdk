@@ -1,20 +1,110 @@
 import { CopilotClient, CustomAgentConfig } from '@github/copilot-sdk';
 import { resolveTools } from './tools';
 
+export type OperationalEvent = {
+    timestamp: string;
+    type: string;
+    summary: string;
+    details?: string[];
+};
 
+export type CopilotOutputHandlers = {
+    onOperationalEvent?: (event: OperationalEvent) => void;
+};
 
-// Run Copilot task with event and tool notifications
-export async function runCopilotTaskWithPredifinedAgents(
-    task: string,
+export type CopilotRunner = {
+    sendTask: (task: string) => Promise<string | undefined>;
+    close: () => Promise<void>;
+};
+
+function nowIsoTimestamp() {
+    return new Date().toISOString();
+}
+
+function mapSessionEventToOperationalEvent(event: { type: string; data: Record<string, unknown> }): OperationalEvent | undefined {
+    switch (event.type) {
+        case 'session.start':
+            return {
+                timestamp: nowIsoTimestamp(),
+                type: event.type,
+                summary: 'Session started',
+                details: [`sessionId=${String(event.data.sessionId ?? '')}`],
+            };
+        case 'subagent.started':
+            return {
+                timestamp: nowIsoTimestamp(),
+                type: event.type,
+                summary: `Sub-agent started: ${String(event.data.agentDisplayName ?? 'unknown')}`,
+                details: [
+                    `description=${String(event.data.agentDescription ?? '')}`,
+                    `toolCallId=${String(event.data.toolCallId ?? '')}`,
+                ],
+            };
+        case 'subagent.completed':
+            return {
+                timestamp: nowIsoTimestamp(),
+                type: event.type,
+                summary: `Sub-agent completed: ${String(event.data.agentDisplayName ?? 'unknown')}`,
+                details: [`toolCallId=${String(event.data.toolCallId ?? '')}`],
+            };
+        case 'subagent.failed':
+            return {
+                timestamp: nowIsoTimestamp(),
+                type: event.type,
+                summary: `Sub-agent failed: ${String(event.data.agentDisplayName ?? 'unknown')}`,
+                details: [`error=${String(event.data.error ?? '')}`],
+            };
+        case 'subagent.selected':
+            return {
+                timestamp: nowIsoTimestamp(),
+                type: event.type,
+                summary: `Agent selected: ${String(event.data.agentDisplayName ?? 'unknown')}`,
+                details: [`tools=${Array.isArray(event.data.tools) ? event.data.tools.join(', ') : 'all'}`],
+            };
+        case 'subagent.deselected':
+            return {
+                timestamp: nowIsoTimestamp(),
+                type: event.type,
+                summary: 'Agent deselected',
+            };
+        case 'tool.execution_start':
+            return {
+                timestamp: nowIsoTimestamp(),
+                type: event.type,
+                summary: `Tool started: ${String(event.data.toolName ?? 'unknown')}`,
+                details: [`arguments=${JSON.stringify(event.data.arguments ?? {})}`],
+            };
+        case 'tool.execution_complete': {
+            const result = event.data.result as { detailedContent?: unknown; content?: unknown } | undefined;
+            return {
+                timestamp: nowIsoTimestamp(),
+                type: event.type,
+                summary: `Tool completed: ${String(event.data.toolCallId ?? '')}`,
+                details: [`result=${String(result?.detailedContent ?? result?.content ?? '')}`],
+            };
+        }
+        default:
+            return undefined;
+    }
+}
+
+export async function createCopilotRunnerWithConfiguredAgents(
     agents: CustomAgentConfig[],
     resume: string | undefined,
     toolNames?: string[],
-) {
+    handlers?: CopilotOutputHandlers,
+): Promise<CopilotRunner> {
     const client = new CopilotClient();
     const tools = resolveTools(toolNames);
     let session;
+
     if (resume) {
-        console.log(`Resuming session with ID: ${resume}`);
+        handlers?.onOperationalEvent?.({
+            timestamp: nowIsoTimestamp(),
+            type: 'session.resume',
+            summary: 'Resuming session',
+            details: [`sessionId=${resume}`],
+        });
         session = await client.resumeSession(resume, { onPermissionRequest: async () => ({ kind: 'approved' }) });
     } else {
         session = await client.createSession({
@@ -26,56 +116,50 @@ export async function runCopilotTaskWithPredifinedAgents(
             onPermissionRequest: async () => ({ kind: 'approved' }),
             hooks: {
                 onPostToolUse: (input) => {
-                    console.log(`[hook:onPostToolUse] ${input.toolName} toolResult:`, input.toolResult);
+                    handlers?.onOperationalEvent?.({
+                        timestamp: nowIsoTimestamp(),
+                        type: 'hook.onPostToolUse',
+                        summary: `Post-tool hook: ${input.toolName}`,
+                        details: [`toolResult=${JSON.stringify(input.toolResult)}`],
+                    });
                 },
             },
         });
     }
 
-    // Subscribe to all events and log them
     const unsubscribe = session.on((event) => {
-        switch (event.type) {
-            case "session.start":
-                console.log("🚀 Session started:", event.data.sessionId);
-                break;
-            case "subagent.started":
-                console.log(`▶ Sub-agent started: ${event.data.agentDisplayName}`);
-                console.log(`  Description: ${event.data.agentDescription}`);
-                console.log(`  Tool call ID: ${event.data.toolCallId}`);
-                break;
-
-            case "subagent.completed":
-                console.log(`✅ Sub-agent completed: ${event.data.agentDisplayName}`);
-                console.log(`  Tool call ID: ${event.data.toolCallId}`);
-                break;
-
-            case "subagent.failed":
-                console.log(`❌ Sub-agent failed: ${event.data.agentDisplayName}`);
-                console.log(`  Error: ${event.data.error}`);
-                break;
-
-            case "subagent.selected":
-                console.log(`🎯 Agent selected: ${event.data.agentDisplayName}`);
-                console.log(`  Tools: ${event.data.tools?.join(", ") ?? "all"}`);
-                break;
-
-            case "subagent.deselected":
-                console.log("↩ Agent deselected, returning to parent");
-                break;
-            case "tool.execution_start":
-                console.log(`🔧 Tool called: ${event.data.toolName}`);
-                console.log(`  Parameters: ${JSON.stringify(event.data.arguments)}`);
-                break;
-            case "tool.execution_complete":
-                console.log(`✅ Tool completed (call ID: ${event.data.toolCallId})`);
-                console.log(`  Result: ${event.data.result?.detailedContent ?? event.data.result?.content}`);
-                break;
-
+        const mappedEvent = mapSessionEventToOperationalEvent(event as { type: string; data: Record<string, unknown> });
+        if (mappedEvent) {
+            handlers?.onOperationalEvent?.(mappedEvent);
         }
     });
-    const response = await session.sendAndWait({ prompt: task });
-    unsubscribe();
-    await session.disconnect();
-    await client.stop();
-    return response?.data.content;
+
+    return {
+        sendTask: async (task: string) => {
+            const response = await session.sendAndWait({ prompt: task });
+            return response?.data.content;
+        },
+        close: async () => {
+            unsubscribe();
+            await session.disconnect();
+            await client.stop();
+        },
+    };
+}
+
+
+// Run Copilot task with event and tool notifications
+export async function runCopilotTaskWithConfiguredAgents(
+    task: string,
+    agents: CustomAgentConfig[],
+    resume: string | undefined,
+    toolNames?: string[],
+    handlers?: CopilotOutputHandlers,
+) {
+    const runner = await createCopilotRunnerWithConfiguredAgents(agents, resume, toolNames, handlers);
+    try {
+        return await runner.sendTask(task);
+    } finally {
+        await runner.close();
+    }
 }
