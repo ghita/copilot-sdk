@@ -1,13 +1,19 @@
 {
-  "name": "copilot-chat-agents",
+  "name": "omni",
   "version": "1.0.0",
   "type": "module",
+  "main": "dist/cli.js",
+  "bin": {
+    "omni": "dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
-    "start-chat": "tsx src/chat.ts"
+    "start": "tsx src/cli.ts"
   },
   "dependencies": {
-    "@github/copilot-sdk": "^0.1.0"
+    "@github/copilot-sdk": "^0.1.0",
+    "commander": "^11.0.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",
